@@ -10,15 +10,12 @@ class SimilaridadeEventosApp:
         self.root = root
         self.root.title("Eventos históricos")
 
-        # Set appearance
         ctk.set_appearance_mode("system")
         ctk.set_default_color_theme("blue")
         
-        # Create main frame
         self.main_frame = ctk.CTkFrame(root, fg_color="#2b2b2b")
         self.main_frame.pack(fill="both", expand=True)
         
-        # Title label
         self.title_label = ctk.CTkLabel(
             self.main_frame, 
             text="Historical Events", 
@@ -26,18 +23,16 @@ class SimilaridadeEventosApp:
         )
         self.title_label.pack(pady=(20, 20))
         
-        # Input frame
         self.input_frame = ctk.CTkFrame(self.main_frame)
         self.input_frame.pack(pady=(0, 20))
         
+        # Aceitar apenas numeros ao pressionar uma tecla
         def on_key_press(event):
-            # Allow control keys (backspace, delete, etc.)
             if event.char.isdigit() or event.keysym in ('BackSpace', 'Delete', 'Left', 'Right'):
                 return
             else:
                 return "break"
 
-        # Content input
         self.content_entry = ctk.CTkEntry(
             self.input_frame, 
             placeholder_text="Enter a year (1-2024)",
@@ -51,19 +46,16 @@ class SimilaridadeEventosApp:
         # Generate button
         self.generate_btn = ctk.CTkButton(
             self.input_frame, 
-            text="Search", 
+            text="List events", 
             font=("Arial", 18, "bold"),
             command=self.list_events,
             height=50
         )
         self.generate_btn.pack(side="left", expand=True, fill="y", padx=(5, 0))
         
-        # Cards frame (scrollable)
+        # Frame eventos - lado esquerdo
         self.left_frame = ctk.CTkFrame(self.main_frame)
         self.left_frame.pack(side="left", expand="True", fill="both")
-
-        self.right_frame = ctk.CTkFrame(self.main_frame)
-        self.right_frame.pack(side="right", expand="True", fill="both")
 
         self.cards_left_frame = ctk.CTkScrollableFrame(
             self.left_frame, 
@@ -71,6 +63,10 @@ class SimilaridadeEventosApp:
             fg_color="#333333"
         )
         self.cards_left_frame.pack(fill="both", expand=True, padx=20)
+
+        # Frame eventos - lado direito
+        self.right_frame = ctk.CTkFrame(self.main_frame)
+        self.right_frame.pack(side="right", expand="True", fill="both")
 
         self.cards_right_frame = ctk.CTkScrollableFrame(
           self.right_frame, 
@@ -80,6 +76,7 @@ class SimilaridadeEventosApp:
         self.cards_right_frame.pack(fill="both", expand=True, padx=20)
     
     def list_events(self):
+        # Remover todos os eventos renderizados caso houver
         for card in self.cards_left_frame.winfo_children():
           card.destroy()
         content = self.content_entry.get()
@@ -88,18 +85,15 @@ class SimilaridadeEventosApp:
           messagebox.showwarning("Warning", "Please enter a valid year")
           return
         
-        #similaridade = obter_similaridade(content, df, 30)
-        
+        # Iterar todos os eventos de acordo com o ano fornecido
         for _, row in df[df["Year"] == int(content)][["Year", "Date", "Event"]].iterrows():
           year =  row["Year"]
           date = row["Date"]
           event = row["Event"]
 
-          # Create card frame
           card = ctk.CTkFrame(self.cards_left_frame, corner_radius=10)
           card.pack(fill="x", expand=True, pady=10, padx=5)
 
-          # Store original border settings
           card.original_border_width = 0
           card.original_border_color = "#000000"
 
@@ -112,11 +106,13 @@ class SimilaridadeEventosApp:
                           border_color=card.original_border_color,
                           fg_color="#2b2b2b")
 
-          # Bind events to this card
+          def on_click(e,event=event):
+            list_similarity_events(event)
+
           card.bind("<Enter>", on_enter)
           card.bind("<Leave>", on_leave)
+          card.bind("<Button-1>", on_click)
 
-          # Card title
           card_title = ctk.CTkLabel(
               card, 
               text=f"{year} ({date})",
@@ -125,7 +121,6 @@ class SimilaridadeEventosApp:
           )
           card_title.pack(fill="x", padx=10, pady=(10, 5))
 
-          # Card content
           card_content = ctk.CTkLabel(
               card, 
               text=event.replace('\n', ''),
@@ -140,35 +135,29 @@ class SimilaridadeEventosApp:
           for widget in (card_title, card_content):
               widget.bind("<Enter>", lambda e, card=card: on_enter(e, card))
               widget.bind("<Leave>", lambda e, card=card: on_leave(e, card))
-
-          def on_click(e,event=event):
-            list_sim_events(event)
-
-          card.bind("<Button-1>", on_click)
-          for widget in (card_title, card_content):
               widget.bind("<Button-1>", lambda e, event=event: on_click(e, event))
 
-          def list_sim_events(content):
+          def list_similarity_events(content):
             for c in self.cards_right_frame.winfo_children():
               c.destroy()
 
-            recomendacao = obter_similaridade(content, df, 30)
+            similaridade = obter_similaridade(content, df, 15)
             
-            for _, row in recomendacao[["Year", "Date", "Event"]].iterrows():
+            for _, row in similaridade[["Year", "Date", "Event"]].iterrows():
               year =  row["Year"]
               date = row["Date"]
               event = row["Event"]
 
                             # Create card frame
-              card2 = ctk.CTkFrame(self.cards_right_frame,
+              card = ctk.CTkFrame(self.cards_right_frame,
                                   corner_radius=10,
                                   border_width=2,
                                   border_color="#1f6aa5",
                                   fg_color="#505050")
-              card2.pack(fill="x", pady=5, padx=5)
+              card.pack(fill="x", pady=5, padx=5)
 
               card_title = ctk.CTkLabel(
-                  card2, 
+                  card, 
                   text=f"{year} ({date})",  # Auto-generated title
                   font=("Arial", 20, "bold"),
                   anchor="w"
@@ -177,7 +166,7 @@ class SimilaridadeEventosApp:
               
               # Card content
               card_content = ctk.CTkLabel(
-                  card2, 
+                  card, 
                   text=event.replace('\n', ''),
                   font=("Arial", 16),
                   anchor="w",
