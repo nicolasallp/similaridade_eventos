@@ -41,22 +41,27 @@ class SimilaridadeEventosApp:
         )
         self.content_entry.pack(side="left", expand=True, fill="y")
         self.content_entry.bind("<Key>", on_key_press)
-        self.content_entry.bind("<Return>", lambda e: self.list_events())
+        self.content_entry.bind("<Return>", lambda e: self.load_data())
         
         # Generate button
         self.generate_btn = ctk.CTkButton(
             self.input_frame, 
             text="List events", 
             font=("Arial", 18, "bold"),
-            command=self.list_events,
+            command=self.load_data,
             height=50
         )
         self.generate_btn.pack(side="left", expand=True, fill="y", padx=(5, 0))
         
-        # Frame eventos - lado esquerdo
-        self.left_frame = ctk.CTkFrame(self.main_frame)
-        self.left_frame.pack(side="left", expand="True", fill="both")
 
+        # Add pagination frame above the scrollable frame
+        self.pagination_frame = ctk.CTkFrame(self.main_frame, height=0)
+        self.pagination_frame.pack(fill="x", padx=20, pady=(0, 10))
+
+        # Frame eventos - lado esquerdo
+        self.left_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.left_frame.pack(side="left", expand="True", fill="both")
+        
         self.cards_left_frame = ctk.CTkScrollableFrame(
             self.left_frame, 
             orientation="vertical",
@@ -66,7 +71,7 @@ class SimilaridadeEventosApp:
 
         # Frame eventos - lado direito
         self.right_frame = ctk.CTkFrame(self.main_frame)
-        self.right_frame.pack(side="right", expand="True", fill="both")
+        self.right_frame.pack(side="right", expand="True", fill="both", pady=(0,0))
 
         self.cards_right_frame = ctk.CTkScrollableFrame(
           self.right_frame, 
@@ -75,18 +80,40 @@ class SimilaridadeEventosApp:
         )
         self.cards_right_frame.pack(fill="both", expand=True, padx=20)
     
-    def list_events(self):
-        # Remover todos os eventos renderizados caso houver
-        for card in self.cards_left_frame.winfo_children():
-          card.destroy()
-        content = self.content_entry.get()
+
+    def load_data(self, page="Jan"):
+      # Remover todos os eventos renderizados caso houver
+      for card in self.cards_left_frame.winfo_children():
+        card.destroy()
+
+      for p in self.pagination_frame.winfo_children():
+        p.destroy()
+      content = self.content_entry.get()
+      
+      if not content:
+        messagebox.showwarning("Warning", "Please enter a valid year")
+        return
+      
+      self.pagination(content)
+      self.list_events(content, page)
         
-        if not content:
-          messagebox.showwarning("Warning", "Please enter a valid year")
-          return
-        
+    def pagination(self, year_input):
+        meses = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        filtered_df = df[(df["Year"] == int(year_input))]
+        for mes in meses:
+            if filtered_df["Date"].str.contains(mes).any():
+              btn = ctk.CTkButton(
+                  self.pagination_frame,
+                  text=mes,
+                  width=50,
+                  command=lambda page=mes: self.load_data(page)
+              )
+              btn.pack(side="left", padx=2)
+
+    def list_events(self, year_input, month):        
         # Iterar todos os eventos de acordo com o ano fornecido
-        for _, row in df[df["Year"] == int(content)][["Year", "Date", "Event"]].iterrows():
+        filtered_df = df[(df["Year"] == int(year_input)) & (df["Date"].str.contains(month))]
+        for _, row in filtered_df[["Year", "Date", "Event"]].iterrows():
           year =  row["Year"]
           date = row["Date"]
           event = row["Event"]
