@@ -41,14 +41,14 @@ class SimilaridadeEventosApp:
         )
         self.content_entry.pack(side="left", expand=True, fill="y")
         self.content_entry.bind("<Key>", on_key_press)
-        self.content_entry.bind("<Return>", lambda e: self.load_data())
+        self.content_entry.bind("<Return>", lambda e: self.load_data(0))
         
         # Generate button
         self.generate_btn = ctk.CTkButton(
             self.input_frame, 
             text="List events", 
             font=("Arial", 18, "bold"),
-            command=self.load_data,
+            command=lambda: self.load_data(0),
             height=50
         )
         self.generate_btn.pack(side="left", expand=True, fill="y", padx=(5, 0))
@@ -94,21 +94,24 @@ class SimilaridadeEventosApp:
         messagebox.showwarning("Warning", "Please enter a valid year")
         return
       
-      self.pagination(content)
-      self.list_events(content, page)
+      pages = self.pagination(content)
+      self.list_events(content, pages[page])
         
     def pagination(self, year_input):
         meses = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        pages = []
         filtered_df = df[(df["Year"] == int(year_input))]
         for mes in meses:
             if filtered_df["Date"].str.contains(mes).any():
+              pages.append(mes)
               btn = ctk.CTkButton(
                   self.pagination_frame,
                   text=mes,
                   width=50,
-                  command=lambda page=mes: self.load_data(page)
+                  command=lambda page=mes: self.load_data(len(pages)-1)
               )
               btn.pack(side="left", padx=2)
+        return pages
 
     def list_events(self, year_input, month):        
         # Iterar todos os eventos de acordo com o ano fornecido
@@ -133,7 +136,7 @@ class SimilaridadeEventosApp:
                           border_color=card.original_border_color,
                           fg_color="#2b2b2b")
 
-          def on_click(e,event=event):
+          def on_click(e, card):
             list_similarity_events(event)
 
           card.bind("<Enter>", on_enter)
