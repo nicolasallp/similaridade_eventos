@@ -1,16 +1,20 @@
 import customtkinter as ctk
 from tkinter import messagebox
 import pandas as pd
+import subprocess, sys
 from funcs import obter_similaridade
+ 
+subprocess.check_call([sys.executable, '-m', 'pip', 'install',
+                       'pandas', 'nltk', 'scikit-learn', 'customtkinter'])
 
 df = pd.read_csv("dataset/events.csv", sep=";")
 
 class SimilaridadeEventosApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Eventos históricos")
+        self.root.title("Historical events")
 
-        ctk.set_appearance_mode("system")
+        ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
         
         self.main_frame = ctk.CTkFrame(root, fg_color="#2b2b2b")
@@ -23,16 +27,18 @@ class SimilaridadeEventosApp:
         )
         self.title_label.pack(pady=(20, 20))
         
+        # Frame input
         self.input_frame = ctk.CTkFrame(self.main_frame)
         self.input_frame.pack(pady=(0, 20))
         
-        # Aceitar apenas numeros ao pressionar uma tecla
+        # Aceitar apenas números ao pressionar uma tecla
         def on_key_press(event):
             if event.char.isdigit() or event.keysym in ('BackSpace', 'Delete', 'Left', 'Right'):
                 return
             else:
                 return "break"
 
+        # Caixa input
         self.content_entry = ctk.CTkEntry(
             self.input_frame, 
             placeholder_text="Enter a year (1-2024)",
@@ -43,7 +49,7 @@ class SimilaridadeEventosApp:
         self.content_entry.bind("<Key>", on_key_press)
         self.content_entry.bind("<Return>", lambda e: self.load_data(0))
         
-        # Generate button
+        # Botão 'List events'
         self.generate_btn = ctk.CTkButton(
             self.input_frame, 
             text="List events", 
@@ -53,8 +59,7 @@ class SimilaridadeEventosApp:
         )
         self.generate_btn.pack(side="left", expand=True, fill="y", padx=(5, 0))
         
-
-        # Add pagination frame above the scrollable frame
+        # Frame paginação
         self.pagination_frame = ctk.CTkFrame(self.main_frame, height=0)
         self.pagination_frame.pack(fill="x", padx=20, pady=(0, 10))
 
@@ -62,6 +67,7 @@ class SimilaridadeEventosApp:
         self.left_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.left_frame.pack(side="left", expand="True", fill="both")
         
+        # Frame dos cards (eventos) - lado esquerdo
         self.cards_left_frame = ctk.CTkScrollableFrame(
             self.left_frame, 
             orientation="vertical",
@@ -73,6 +79,7 @@ class SimilaridadeEventosApp:
         self.right_frame = ctk.CTkFrame(self.main_frame)
         self.right_frame.pack(side="right", expand="True", fill="both", pady=(0,0))
 
+        # Frame dos cards (eventos) - lado direito
         self.cards_right_frame = ctk.CTkScrollableFrame(
           self.right_frame, 
           orientation="vertical",
@@ -81,11 +88,12 @@ class SimilaridadeEventosApp:
         self.cards_right_frame.pack(fill="both", expand=True, padx=20)
     
 
-    def load_data(self, page="Jan"):
-      # Remover todos os eventos renderizados caso houver
+    def load_data(self, page):
+      # Remover todos os cards renderizados (caso houver)
       for card in self.cards_left_frame.winfo_children():
         card.destroy()
 
+      # Remover todos os botões da paginação (caso houver)
       for p in self.pagination_frame.winfo_children():
         p.destroy()
       content = self.content_entry.get()
@@ -98,25 +106,32 @@ class SimilaridadeEventosApp:
       self.list_events(content, pages[page])
         
     def pagination(self, year_input):
-        meses = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         pages = []
-        filtered_df = df[(df["Year"] == int(year_input))]
-        for mes in meses:
-            if filtered_df["Date"].str.contains(mes).any():
-              pages.append(mes)
+        # Obtém todos os eventos do ano fornecido no parâmetro 'year_input'
+        year_df = df[(df["Year"] == int(year_input))]
+        for m in months:
+            # Verifica se existe um evento no mês lido (m)
+            if year_df["Date"].str.contains(m).any():
+              # O mês é inserido na lista 'pages'
+              pages.append(m)
               btn = ctk.CTkButton(
                   self.pagination_frame,
-                  text=mes,
+                  text=m,
                   width=50,
-                  command=lambda page=mes: self.load_data(len(pages)-1)
+                  command=lambda page=len(pages)-1: self.load_data(page)
               )
               btn.pack(side="left", padx=2)
+        # Retorna uma lista de todos os meses onde há eventos
         return pages
 
-    def list_events(self, year_input, month):        
-        # Iterar todos os eventos de acordo com o ano fornecido
-        filtered_df = df[(df["Year"] == int(year_input)) & (df["Date"].str.contains(month))]
-        for _, row in filtered_df[["Year", "Date", "Event"]].iterrows():
+    def list_events(self, year_input, month):
+        # Obtém todos os eventos do ano e mês fornecidos
+        month_df = df[(df["Year"] == int(year_input)) & (df["Date"].str.contains(month))]
+        # Ordena a data dos eventos
+        month_df['date_num'] = month_df['Date'].str.extract(r'(\d+)').astype(int)
+        month_df = month_df.sort_values('date_num').drop(columns='date_num')
+        for _, row in month_df[["Year", "Date", "Event"]].iterrows():
           year =  row["Year"]
           date = row["Date"]
           event = row["Event"]
@@ -124,19 +139,13 @@ class SimilaridadeEventosApp:
           card = ctk.CTkFrame(self.cards_left_frame, corner_radius=10)
           card.pack(fill="x", expand=True, pady=10, padx=5)
 
-          card.original_border_width = 0
-          card.original_border_color = "#000000"
-
-          # Hover functions (defined inside the loop)
-          def on_enter(e, card=card):  # Pass card as default argument
+          def on_enter(e, card=card):
               card.configure(border_width=2, border_color="#1f6aa5", fg_color="#505050")
 
-          def on_leave(e, card=card):  # Pass card as default argument
-              card.configure(border_width=card.original_border_width, 
-                          border_color=card.original_border_color,
-                          fg_color="#2b2b2b")
-
-          def on_click(e, card):
+          def on_leave(e, card=card):
+              card.configure(border_width=0, border_color="#000000", fg_color="#2b2b2b")
+              
+          def on_click(e, event=event):
             list_similarity_events(event)
 
           card.bind("<Enter>", on_enter)
@@ -161,7 +170,7 @@ class SimilaridadeEventosApp:
           )
           card_content.pack(fill="x", padx=10, pady=(0, 10))
 
-          # Make child widgets propagate hover events
+          # Efeito hover para todos os elementos filhos dos cards
           for widget in (card_title, card_content):
               widget.bind("<Enter>", lambda e, card=card: on_enter(e, card))
               widget.bind("<Leave>", lambda e, card=card: on_leave(e, card))
@@ -178,7 +187,6 @@ class SimilaridadeEventosApp:
               date = row["Date"]
               event = row["Event"]
 
-                            # Create card frame
               card = ctk.CTkFrame(self.cards_right_frame,
                                   corner_radius=10,
                                   border_width=2,
@@ -188,13 +196,12 @@ class SimilaridadeEventosApp:
 
               card_title = ctk.CTkLabel(
                   card, 
-                  text=f"{year} ({date})",  # Auto-generated title
+                  text=f"{year} ({date})",
                   font=("Arial", 20, "bold"),
                   anchor="w"
               )
               card_title.pack(fill="x", padx=10, pady=(10, 5))
               
-              # Card content
               card_content = ctk.CTkLabel(
                   card, 
                   text=event.replace('\n', ''),
