@@ -2,10 +2,12 @@ import customtkinter as ctk
 from tkinter import messagebox
 import pandas as pd
 import subprocess, sys
-from funcs import obter_similaridade
+from funcs import obter_similaridade, nltk_downloads
  
 subprocess.check_call([sys.executable, '-m', 'pip', 'install',
                        'pandas', 'nltk', 'scikit-learn', 'customtkinter'])
+
+nltk_downloads()
 
 df = pd.read_csv("dataset/events.csv", sep=";")
 
