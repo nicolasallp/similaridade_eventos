@@ -34,28 +34,29 @@ def obter_similaridade(query, dataFrame, top):
 
 def obter_similaridade_manual(query, dataFrame, top):
     tokens_consulta = word_tokenize(tratamento_texto(query))
-
     lista_tokens = [word_tokenize(descricao) for descricao in dataFrame["texto_tratado"]]
 
     bag_of_words_set = set()
     for tokens in lista_tokens:
         bag_of_words_set.update(tokens)
     bag_of_words = list(bag_of_words_set)
-
-    vetor_consulta = [Counter(tokens_consulta).get(palavra, 0) for palavra in bag_of_words]
+    vetor_consulta = [tokens_consulta.count(palavra) for palavra in bag_of_words]
 
     lista_vetores = []
     for tokens in lista_tokens:
-        vetor = [Counter(tokens).get(palavra, 0) for palavra in bag_of_words]
+        vetor = [tokens.count(palavra) for palavra in bag_of_words]
         lista_vetores.append(vetor)
 
-    def obterAngulo(v1, v2):
+    def valor_cosseno(v1, v2):
         u = np.array(v1)
         v = np.array(v2)
         cos = np.dot(u,v)/((np.linalg.norm(u))*(np.linalg.norm(v)))
         return np.degrees(np.arccos(cos))
-
+    
     recomendacao = dataFrame
-    recomendacao["Similaridade"] = [obterAngulo(vetor_consulta, v) for v in lista_vetores]
+    recomendacao["Similaridade"] = [valor_cosseno(vetor_consulta, v) for v in lista_vetores]
     recomendacao = recomendacao.sort_values("Similaridade")
     return recomendacao.head(top)
+
+
+
